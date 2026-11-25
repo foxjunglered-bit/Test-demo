@@ -1,18 +1,11 @@
-# Test-demo — Le refuge du lac
+# Le refuge du lac — démo 3D (Three.js)
 
-Démo Three.js, publiée sur https://test-demo-six-opal.vercel.app.
+Première démo : tout le décor est généré par code (aucun modèle 3D ni image externe).
 
-## V14
+- Terrain de 250 x 250 m, montagnes autour, rivière turquoise animée, forêt (pins et feuillus), rochers, herbe qui bouge au vent, fleurs.
+- Ciel, nuages, cycle jour/nuit (bouton « Heure » : +3 h), ombres, cabane avec fenêtre allumée la nuit.
+- Joystick tactile à gauche, glisser à droite pour regarder, clavier ZQSD/WASD, vue 1re ou 3e personne.
+- Compteur FPS, triangles et appels de rendu ; 3 niveaux de qualité (Bas / Moyen / Élevé), baisse automatique si moins de 22 FPS.
 
-La voiture procédurale de la V13 est remplacée par le modèle fourni `1000025324.glb`, dans `assets/car-v14.glb`. La cabane, le terrain, le personnage et les commandes restent ceux de la V13.
-
-- 81 758 triangles (original : 192 220), 2 337 052 octets (original : 9 365 656).
-- Deux textures WebP de 2048 × 2048 conservées sans réencodage.
-- Simplification meshoptimizer avec un seuil d'erreur de 0,002, puis compression Meshopt.
-- Longueur dans la scène : 4,66 m. Placement centré, ajusté à la pente du parking.
-- Chargement asynchrone avec message de progression et bouton de nouvelle tentative en cas d'échec.
-- Three.js 0.169.0 et le décodeur Meshopt sont servis depuis `vendor/` ; leurs licences sont incluses. Aucun service payant ou abonnement ajouté.
-
-Contrôles : joystick à gauche pour marcher, glisser sur la scène pour regarder ; clavier ZQSD/WASD ou flèches.
-
-Validation : syntaxe JavaScript, validation glTF (aucune erreur ni alerte ; extension Meshopt vérifiée séparément), décodage par GLTFLoader et MeshoptDecoder, décodage des textures et dimensions vérifiés. Le navigateur de contrôle ne dispose pas de WebGL ; rendu visuel et performances sur téléphone restent à vérifier sur un appareil compatible.
+Three.js 0.169.0 est inclus dans `vendor/` (licence MIT). Aucun service payant.
+Les performances sur téléphone sont à mesurer sur un vrai appareil.

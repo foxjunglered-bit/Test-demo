@@ -1,194 +1,42 @@
-<!doctype html><html lang="fr"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"><title>Test Démo</title><style>*{box-sizing:border-box}body{margin:0;overflow:hidden;background:#8ec6df;font:14px system-ui;color:white;touch-action:none}canvas{display:block}#hud{position:absolute;top:16px;left:16px;text-shadow:0 2px 5px #234}#pad{position:absolute;bottom:28px;left:24px;width:120px;height:120px;border:2px solid #fff8;border-radius:50%;background:#2344;touch-action:none}#knob{position:absolute;left:38px;top:38px;width:40px;height:40px;background:#fffc;border-radius:50%;pointer-events:none}#hint{position:absolute;bottom:24px;right:18px;text-shadow:0 2px 4px #123;pointer-events:none}</style><div id="hud"><b>TEST DÉMO V14 · Le refuge du lac</b><div id="fps">Chargement…</div></div><div id="pad"><div id="knob"></div></div><div id="hint">Glisse à droite pour regarder</div><div id="car-status" role="status" style="position:absolute;top:64px;left:16px;max-width:85vw;text-shadow:0 2px 5px #234">Chargement de la voiture…</div><script type="importmap">{"imports":{"three":"./vendor/three.module.js"}}</script><script type="module">
-import * as T from 'three';
-import {GLTFLoader} from './vendor/GLTFLoader.js';
-import {MeshoptDecoder} from './vendor/meshopt_decoder.mjs';
-const scene=new T.Scene();scene.background=new T.Color(0x91c9e7);scene.fog=new T.FogExp2(0xa7cddd,.0028);
-const camera=new T.PerspectiveCamera(65,innerWidth/innerHeight,.1,650),r=new T.WebGLRenderer({antialias:true});r.setSize(innerWidth,innerHeight);r.setPixelRatio(Math.min(devicePixelRatio,1.15));r.toneMapping=T.ACESFilmicToneMapping;r.toneMappingExposure=1.12;r.shadowMap.enabled=true;r.shadowMap.type=T.PCFSoftShadowMap;document.body.prepend(r.domElement);scene.add(new T.HemisphereLight(0xe4f6ff,0x647344,1.55));const sun=new T.DirectionalLight(0xffe2b4,2.8);sun.position.set(-40,65,30);sun.castShadow=true;sun.shadow.mapSize.set(512,512);r.shadowMap.autoUpdate=false;r.shadowMap.needsUpdate=true;Object.assign(sun.shadow.camera,{left:-45,right:45,top:45,bottom:-45,far:160});scene.add(sun,sun.target);
-let seed=42;const rand=()=>{seed=(1664525*seed+1013904223)>>>0;return seed/4294967296};const shore=z=>-9+27*Math.exp(-Math.pow(z/16,2))+2*Math.sin(z*.12);const river=z=>shore(z)-18;const h=(x,z)=>{let d=x-shore(z);return Math.max(-4,Math.min(1.1,d*.32)) + Math.max(0,Math.min(1,(d-4)/10))*(.35*Math.sin(x*.23)*Math.cos(z*.18)+Math.max(0,d-28)*.06);};
-
-// Shared path mask for terrain and all vegetation. Cabin door at (27,6), dock at z=-5.
-function seg(x,z,ax,az,bx,bz){let dx=bx-ax,dz=bz-az,t=Math.max(0,Math.min(1,((x-ax)*dx+(z-az)*dz)/(dx*dx+dz*dz)));return Math.hypot(x-ax-t*dx,z-az-t*dz)}
-const fireX=shore(0)+2.4;
-function pathDist(x,z){return Math.min(seg(x,z,27,6,24,8),seg(x,z,24,8,22,4),seg(x,z,22,4,fireX+1.8,0),seg(x,z,fireX+1.8,0,shore(-5)+2,-5),seg(x,z,shore(-5)+2,-5,shore(-5),-5),Math.abs(Math.hypot(x-fireX,z)-1.8));}
-function bare(x,z){return Math.hypot((x-34)/3.6,(z-9)/4.1)<1||seg(x,z,27,6,34,9)<.75|| pathDist(x,z)<.66+.10*Math.sin(x*4+z*3)||Math.hypot(x-fireX,z)<1.05||Math.abs(x-27)<3.2&&Math.abs(z-3)<2.7||x<shore(z)+.3;}
-const g=new T.PlaneGeometry(220,220,220,220);g.rotateX(-Math.PI/2);let p=g.attributes.position,colors=[];for(let i=0;i<p.count;i++){let x=p.getX(i),z=p.getZ(i),y=h(x,z);p.setY(i,y);let c=new T.Color(bare(x,z)?0xb69a72:0x547d31);c.multiplyScalar(.83+rand()*.3);colors.push(c.r,c.g,c.b)}g.setAttribute('color',new T.Float32BufferAttribute(colors,3));g.computeVertexNormals();const groundMat=new T.MeshStandardMaterial({vertexColors:true,roughness:1});const texCanvas=document.createElement('canvas');texCanvas.width=texCanvas.height=256;const ctx=texCanvas.getContext('2d');ctx.fillStyle='#aab39a';ctx.fillRect(0,0,256,256);for(let i=0;i<18000;i++){let v=110+Math.floor(rand()*130);ctx.fillStyle='rgb('+v+','+Math.min(255,v+12)+','+Math.max(0,v-15)+')';ctx.fillRect(rand()*256,rand()*256,1+rand()*4,1+rand()*3)}const tex=new T.CanvasTexture(texCanvas);tex.wrapS=tex.wrapT=T.RepeatWrapping;tex.repeat.set(70,70);groundMat.map=tex;
-// Fine painted grass carpet and dirt paths at texture resolution, rather than coarse vertex colors.
-const carpet=document.createElement('canvas');carpet.width=carpet.height=1024;const cc=carpet.getContext('2d');cc.fillStyle='#577d35';cc.fillRect(0,0,1024,1024);
-for(let i=0;i<180000;i++){let x=rand()*1024,y=rand()*1024;cc.strokeStyle=['#385c29','#73994a','#8ba655','#496e30','#a2b66a'][i%5];cc.lineWidth=.6+rand()*1.2;cc.beginPath();cc.moveTo(x,y);cc.lineTo(x+(rand()-.5)*3,y-1-rand()*4);cc.stroke()}
-const carpetTex=new T.CanvasTexture(carpet);carpetTex.colorSpace=T.SRGBColorSpace;carpetTex.wrapS=carpetTex.wrapT=T.RepeatWrapping;carpetTex.repeat.set(22,22);carpetTex.anisotropy=Math.min(4,r.capabilities.getMaxAnisotropy());
-const maskCanvas=document.createElement('canvas');maskCanvas.width=maskCanvas.height=1024;const mc=maskCanvas.getContext('2d'),im=mc.createImageData(1024,1024);for(let j=0;j<1024;j++)for(let i=0;i<1024;i++){let x=i/1023*220-110,z=j/1023*220-110,k=(j*1024+i)*4;let d=Math.min(pathDist(x,z),seg(x,z,27,6,34,9)),v=bare(x,z)?255:Math.round(255*(1-T.MathUtils.smoothstep(d,.65,.95)));im.data[k]=im.data[k+1]=im.data[k+2]=v;im.data[k+3]=255}mc.putImageData(im,0,0);const maskTex=new T.CanvasTexture(maskCanvas);maskTex.flipY=true;
-const groundTime={value:0};groundMat.vertexColors=false;groundMat.map=carpetTex;groundMat.onBeforeCompile=sh=>{sh.uniforms.pathMask={value:maskTex};sh.uniforms.gTime=groundTime;sh.vertexShader='varying vec2 terrainUV;\n'+sh.vertexShader;sh.vertexShader=sh.vertexShader.replace('#include <uv_vertex>','#include <uv_vertex>\n terrainUV=uv;');sh.fragmentShader='varying vec2 terrainUV;uniform sampler2D pathMask;uniform float gTime;\n'+sh.fragmentShader;sh.fragmentShader=sh.fragmentShader.replace('#include <map_fragment>',`#include <map_fragment>
-float path=texture2D(pathMask,terrainUV).r;
-float wave=sin(terrainUV.x*650.+terrainUV.y*370.+gTime*1.5)*.035;
-vec3 dirt=vec3(.43,.30,.17)*( .86+.14*sin(terrainUV.x*1900.)*sin(terrainUV.y*2100.));
-diffuseColor.rgb=mix(diffuseColor.rgb*(1.25+wave),dirt,path);
-`);};
-const ground=new T.Mesh(g,groundMat);ground.receiveShadow=true;scene.add(ground);
-const mat=c=>new T.MeshStandardMaterial({color:c,roughness:1});function mesh(geo,m,x,y,z,parent=scene){let o=new T.Mesh(geo,m);o.position.set(x,y,z);o.castShadow=true;o.receiveShadow=true;parent.add(o);return o}
-
-// Continuous alpine ridge, with snow and exposed stone following the relief.
-const ridge=new T.PlaneGeometry(620,620,200,200);ridge.rotateX(-Math.PI/2);
-const rp=ridge.attributes.position,rc=[];
-for(let i=0;i<rp.count;i++){let x=rp.getX(i),z=rp.getZ(i),d=Math.hypot(x,z),a=Math.atan2(z,x),edge= Math.max(0,Math.min(1,(d-103)/75));let peaks= .55+.22*Math.sin(a*7+1)+.15*Math.cos(a*13)+.08*Math.sin(a*23);let rough=7*Math.sin(x*.09)*Math.cos(z*.12)+3*Math.sin(x*.29+z*.17)+2*Math.cos(z*.37-x*.23);let y=-5+edge*(25+105*peaks+rough)*Math.exp(-Math.pow((d-215)/125,2));rp.setY(i,y);let snow=y>65+8*Math.sin(x*.13)+5*Math.cos(z*.18);let c=new T.Color(snow?0xe6edf0:y>36?0x727e84:0x526f51);c.multiplyScalar(.83+.17*Math.sin(x*.17+z*.21)+rand()*.12);rc.push(c.r,c.g,c.b)}
-ridge.setAttribute('color',new T.Float32BufferAttribute(rc,3));ridge.computeVertexNormals();scene.add(new T.Mesh(ridge,new T.MeshStandardMaterial({vertexColors:true,roughness:1})));
-const sky=new T.Mesh(new T.SphereGeometry(480,32,20),new T.ShaderMaterial({side:T.BackSide,depthWrite:false,vertexShader:'varying vec3 v;void main(){v=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',fragmentShader:'varying vec3 v; float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);} float noise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(hash(i),hash(i+vec2(1,0)),f.x),mix(hash(i+vec2(0,1)),hash(i+1.),f.x),f.y);} void main(){vec3 d=normalize(v);vec3 c=mix(vec3(.75,.88,.94),vec3(.12,.48,.79),smoothstep(0.,.8,d.y));vec2 p=d.xz/max(.12,d.y)*2.;float n=noise(p)*.55+noise(p*2.1)*.27+noise(p*4.3)*.12+noise(p*8.)*.06;float cloud=smoothstep(.49,.67,n)*smoothstep(.04,.24,d.y);c=mix(c,vec3(1.,.99,.94),cloud*.94);gl_FragColor=vec4(c,1.);}'}));scene.add(sky);
-const waterGeo=new T.PlaneGeometry(220,220);waterGeo.rotateX(-Math.PI/2);const water=new T.Mesh(waterGeo,new T.ShaderMaterial({transparent:true,depthWrite:false,uniforms:{time:{value:0}},vertexShader:'varying vec3 w;void main(){w=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',fragmentShader:'varying vec3 w;uniform float time;void main(){float shore=-9.+27.*exp(-pow(w.z/16.,2.))+2.*sin(w.z*.12);float d=shore-w.x;if(d<0.)discard;float a=sin(w.x*2.+w.z*.7+time)*sin(w.z*1.8-time*.7);float b=sin(w.x*7.+w.z*3.+time)*cos(w.z*5.-time*.8);vec3 c=mix(vec3(.30,.72,.59),vec3(.035,.32,.43),smoothstep(0.,18.,d));float fres=pow(1.-abs(normalize(cameraPosition-w).y),3.);c=mix(c,vec3(.48,.70,.79),fres*.55);c+=a*.025+b*.012+pow(max(0.,a*.7+b*.3),10.)*.38;gl_FragColor=vec4(c,.55+.4*smoothstep(0.,8.,d));}'}));scene.add(water);
-
-// Pine branch atlas: painted needles on irregular, layered boughs.
-const pineCanvas=document.createElement('canvas');pineCanvas.width=512;pineCanvas.height=256;const pc=pineCanvas.getContext('2d');
-for(let i=0;i<46;i++){let t=i/46,x=20+t*470,y=128+Math.sin(t*9)*9,span=(1-t)*95+8;for(let side of [-1,1]){let ex=x+35+rand()*30,ey=y+side*span*(.5+rand()*.5);pc.strokeStyle='#53613a';pc.lineWidth=2;pc.beginPath();pc.moveTo(x,y);pc.lineTo(ex,ey);pc.stroke();for(let j=0;j<28;j++){let q=j/28,xx=x+(ex-x)*q,yy=y+(ey-y)*q;pc.strokeStyle=['#233e2b','#36583a','#52774a','#76935a','#91a96b'][Math.floor(rand()*5)];pc.lineWidth=1.2+rand()*1.7;pc.beginPath();pc.moveTo(xx,yy);pc.lineTo(xx+5+rand()*15,yy+(rand()-.5)*27);pc.stroke()}}}
-pc.strokeStyle='#473a2c';pc.lineWidth=6;pc.beginPath();pc.moveTo(5,128);pc.lineTo(495,128);pc.stroke();
-pc.strokeStyle='#a18a65';pc.lineWidth=1.3;pc.beginPath();pc.moveTo(5,126);pc.lineTo(495,126);pc.stroke();const pineTex=new T.CanvasTexture(pineCanvas);pineTex.colorSpace=T.SRGBColorSpace;pineTex.anisotropy=2;
-
-const barkCanvas=document.createElement('canvas');barkCanvas.width=256;barkCanvas.height=512;const bc=barkCanvas.getContext('2d');bc.fillStyle='#665443';bc.fillRect(0,0,256,512);
-for(let i=0;i<95;i++){let x=rand()*256,y=-80+rand()*540,w=3+rand()*10,hh=40+rand()*150;bc.fillStyle=['#40372e','#514438','#77624c','#89735b','#5d4c3e'][i%5];bc.beginPath();bc.moveTo(x,y);bc.lineTo(x+w,y+8);bc.lineTo(x+w*.8+4,y+hh*.55);bc.lineTo(x+w*.4,y+hh);bc.lineTo(x-3,y+hh*.7);bc.closePath();bc.fill();bc.strokeStyle='#302a2555';bc.lineWidth=1.5;bc.stroke()}
-for(let i=0;i<1600;i++){let x=rand()*256,y=rand()*512;bc.strokeStyle=i%2?'#332b2455':'#b09a7755';bc.lineWidth=.5+rand()*1.6;bc.beginPath();bc.moveTo(x,y);bc.lineTo(x+(rand()-.5)*4,y+5+rand()*30);bc.stroke()}
-const bt=new T.CanvasTexture(barkCanvas);bt.colorSpace=T.SRGBColorSpace;bt.anisotropy=4;
-const bark=new T.MeshStandardMaterial({map:bt,bumpMap:bt,bumpScale:.12,roughness:1});
-const trunk=new T.CylinderGeometry(.045,.34,7,12,12);let tp=trunk.attributes.position;for(let i=0;i<tp.count;i++){let y=tp.getY(i),x=tp.getX(i),z=tp.getZ(i),a=Math.atan2(z,x),base=Math.max(0,1-(y+3.5)/.85),r=1+.11*Math.cos(a*5+y*.8)+base*.65*(.5+.5*Math.cos(a*5));tp.setXYZ(i,x*r+.09*Math.sin((y+3.5)*.8),y,z*r+.06*Math.sin(y*1.3))}trunk.computeVertexNormals();
-const trees=[];for(let i=0;i<320;i++){let x=(rand()-.5)*195,z=(rand()-.5)*195;if(x<shore(z)+4||Math.hypot(x-25,z-3)<12||pathDist(x,z)<2)continue;trees.push([x,h(x,z),z,.7+rand()*1.35]);}
-const obj=new T.Object3D(),tm=new T.InstancedMesh(trunk,bark,trees.length);tm.castShadow=true;tm.receiveShadow=true;
-const pg=new T.PlaneGeometry(1,1,2,1);pg.rotateX(-Math.PI/2);pg.translate(.5,0,0);
-const pm=new T.MeshBasicMaterial({map:pineTex,alphaTest:.25,side:T.DoubleSide,color:0xffffff});
-const branches=new T.InstancedMesh(pg,pm,trees.length*84);let bi=0;
-const rootGeo=new T.CylinderGeometry(.045,.16,1,7),roots=new T.InstancedMesh(rootGeo,bark,trees.length*5);let ri=0;
-trees.forEach(([x,y,z,k],i)=>{obj.position.set(x,y+3.5*k,z);obj.scale.setScalar(k);obj.rotation.set(0,i*2.4,0);obj.updateMatrix();tm.setMatrixAt(i,obj.matrix);
-for(let j=0;j<5;j++){let a=j*1.256+i*2.4,dx=Math.cos(a),dz=Math.sin(a),start=new T.Vector3(x,y+.32*k,z),end=new T.Vector3(x+dx*.85*k,h(x+dx*.85*k,z+dz*.85*k)-.06,z+dz*.85*k),v=end.clone().sub(start);obj.position.copy(start).addScaledVector(v,.5);obj.quaternion.setFromUnitVectors(new T.Vector3(0,1,0),v.clone().normalize());obj.scale.set(k,v.length(),k);obj.updateMatrix();roots.setMatrixAt(ri++,obj.matrix)}
-for(let j=0;j<84;j++){let level=j/84,angle=j*2.39996+i*.7,len=(.22+2.75*Math.pow(1-level,.78))*k*(.78+rand()*.35);obj.position.set(x,y+(1.15+level*5.95)*k,z);obj.rotation.set(0,angle,0);obj.rotateZ(-.12-rand()*.24);obj.rotateX((rand()-.5)*1.1);obj.scale.set(len,1,len*.92);obj.updateMatrix();branches.setMatrixAt(bi,obj.matrix);branches.setColorAt(bi++,new T.Color().setHSL(.24+rand()*.035,.13,.58+level*.28+rand()*.12));}});scene.add(tm,roots,branches);
-const rockGeo=new T.IcosahedronGeometry(1,2),rockMat=mat(0x92978c);const rv=rockGeo.attributes.position;for(let i=0;i<rv.count;i++){let x=rv.getX(i),y=rv.getY(i),z=rv.getZ(i),k=1+.14*Math.sin(x*13+y*7)*Math.cos(z*11);rv.setXYZ(i,x*k,y*k,z*k)}rockGeo.computeVertexNormals();for(let i=0;i<130;i++){let z=(rand()-.5)*200,x=shore(z)+(rand()-.25)*9;let o=mesh(rockGeo,rockMat,x,h(x,z)+.15,z);o.scale.set(.4+rand()*1.4,.3+rand()*.8,.5+rand());o.rotation.y=rand()*6}
-
-// Multi-blade tufts: tapered curved ribbons, vertex shading and GPU wind/trampling.
-const gv=[],gc=[],gi=[];for(let j=0;j<9;j++){let angle=j*2.39996,ox=(rand()-.5)*.34,oz=(rand()-.5)*.34,hh=.48+rand()*.48,lean=.12+rand()*.25,w=.035+rand()*.035,base=gv.length/3;for(let k=0;k<=4;k++){let t=k/4,ww=w*Math.pow(1-t,.75),cx=ox+Math.cos(angle)*lean*t*t,cz=oz+Math.sin(angle)*lean*t*t;for(let side of [-1,1]){gv.push(cx+Math.sin(angle)*ww*side,hh*t,cz-Math.cos(angle)*ww*side);let c=new T.Color().setHSL(.23-.07*t,.53,.20+.24*t);gc.push(c.r,c.g,c.b)}if(k<4){let i=base+k*2;gi.push(i,i+1,i+2,i+1,i+3,i+2)}}}
-const grassGeo=new T.BufferGeometry();grassGeo.setAttribute('position',new T.Float32BufferAttribute(gv,3));grassGeo.setAttribute('color',new T.Float32BufferAttribute(gc,3));grassGeo.setIndex(gi);grassGeo.computeVertexNormals();
-const grassUniforms={uTime:{value:0},uPlayer:{value:new T.Vector2(28,12)},uTrail:{value:Array.from({length:8},()=>new T.Vector4(0,0,-100,0))}};
-const grassMat=new T.MeshStandardMaterial({color:0xffffff,vertexColors:true,side:T.DoubleSide,roughness:.95});grassMat.onBeforeCompile=shader=>{Object.assign(shader.uniforms,grassUniforms);shader.vertexShader='uniform float uTime; uniform vec2 uPlayer; uniform vec4 uTrail[8];\n'+shader.vertexShader;shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>',`#include <begin_vertex>
-vec3 root=(instanceMatrix*vec4(0.,0.,0.,1.)).xyz;
-float tip=clamp(position.y,0.,1.);
-vec2 away=root.xz-uPlayer;float dist=length(away);float press=1.-smoothstep(.25,1.15,dist);
-vec2 push=away/max(.08,dist)*press;
-for(int i=0;i<8;i++){vec2 delta=root.xz-uTrail[i].xy;float dd=length(delta);float q=(1.-smoothstep(.2,.85,dd))*clamp(1.-(uTime-uTrail[i].z)/2.8,0.,1.);if(q>press){press=q;push=delta/max(.08,dd)*q;}}
-vec2 wind=vec2(sin(uTime*1.7+root.x*.65+root.z*.4),cos(uTime*1.2+root.z*.55))*.10;
-vec2 bend=(wind*(1.-press)+push*.55)*tip*tip;
-vec3 ix=normalize(instanceMatrix[0].xyz),iz=normalize(instanceMatrix[2].xyz);
-transformed.x+=dot(vec3(bend.x,0.,bend.y),ix);
-transformed.z+=dot(vec3(bend.x,0.,bend.y),iz);
-transformed.y*=1.-press*.78;
-`);};
-
-// Baked tuft atlas: many painted blades on two intersecting cards, no alpha blending.
-const atlas=document.createElement('canvas');atlas.width=256;atlas.height=256;const ac=atlas.getContext('2d');
-for(let i=0;i<65;i++){let x=25+rand()*206,y=252-rand()*12,hh=65+rand()*175,lean=(rand()-.5)*100,w=3+rand()*10;let grad=ac.createLinearGradient(x,y,x+lean,y-hh);grad.addColorStop(0,'#294d22');grad.addColorStop(.45,['#527b32','#638b39','#749a42'][i%3]);grad.addColorStop(1,['#a3b95e','#8caf4b','#c0c779'][i%3]);ac.fillStyle=grad;ac.beginPath();ac.moveTo(x-w,y);ac.quadraticCurveTo(x+lean*.15-w,y-hh*.6,x+lean,y-hh);ac.quadraticCurveTo(x+lean*.5+w,y-hh*.45,x+w,y);ac.fill()}
-const atlasTex=new T.CanvasTexture(atlas);atlasTex.colorSpace=T.SRGBColorSpace;atlasTex.anisotropy=2;
-const cv=[],cu=[],ci=[];for(let j=0;j<2;j++){let angle=j*Math.PI/2,dx=Math.cos(angle)*.65,dz=Math.sin(angle)*.65,base=cv.length/3;for(let k=0;k<3;k++){let y=k*.5;cv.push(-dx,y,-dz,dx,y,dz);cu.push(0,y,1,y);if(k<2){let q=base+k*2;ci.push(q,q+1,q+2,q+1,q+3,q+2)}}}
-const cardGeo=new T.BufferGeometry();cardGeo.setAttribute('position',new T.Float32BufferAttribute(cv,3));cardGeo.setAttribute('uv',new T.Float32BufferAttribute(cu,2));cardGeo.setIndex(ci);cardGeo.computeVertexNormals();
-const cardMat=new T.MeshBasicMaterial({map:atlasTex,alphaTest:.48,side:T.DoubleSide,color:0xffffff});cardMat.onBeforeCompile=sh=>{sh.uniforms.uTime=grassUniforms.uTime;sh.uniforms.uPlayer=grassUniforms.uPlayer;sh.uniforms.uTrail=grassUniforms.uTrail;sh.vertexShader='uniform float uTime;uniform vec2 uPlayer;uniform vec4 uTrail[8];\n'+sh.vertexShader;sh.vertexShader=sh.vertexShader.replace('#include <begin_vertex>',`#include <begin_vertex>
-vec3 root=instanceMatrix[3].xyz;float tip=position.y;float d=length(root.xz-uPlayer);float p=1.-smoothstep(.25,1.15,d);
-if(d<6.){for(int i=0;i<8;i++){float q=(1.-smoothstep(.2,.85,length(root.xz-uTrail[i].xy)))*clamp(1.-(uTime-uTrail[i].z)/2.8,0.,1.);p=max(p,q);}}
-transformed.y*=1.-p*.78;transformed.x+=tip*tip*(sin(uTime*1.7+root.x*.65+root.z*.4)*.12+p*.42);
-`);};
-const farGrassMat=new T.MeshBasicMaterial({map:atlasTex,alphaTest:.58,side:T.DoubleSide});farGrassMat.onBeforeCompile=sh=>{sh.uniforms.uTime=grassUniforms.uTime;sh.vertexShader='uniform float uTime;\n'+sh.vertexShader;sh.vertexShader=sh.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\n transformed.x+=position.y*position.y*sin(uTime*1.7+instanceMatrix[3].x*.65+instanceMatrix[3].z*.4)*.12;');};const grassChunks=[];const dummy=new T.Object3D(),chunks=new Map();for(let i=0;i<24000;i++){let x=14+rand()*36,z=-25+rand()*55;if(bare(x,z))continue;let key=Math.floor(x/8)+','+Math.floor(z/8);if(!chunks.has(key))chunks.set(key,[]);chunks.get(key).push([x,z,rand()*6.28,1.05+rand()*.65,.65+rand()*.65]);}
-for(const list of chunks.values()){const m=new T.InstancedMesh(cardGeo,cardMat,list.length);list.forEach(([x,z,a,w,hh],i)=>{dummy.position.set(x,h(x,z)-.035,z);dummy.rotation.set(0,a,0);dummy.scale.set(w,hh,w);dummy.updateMatrix();m.setMatrixAt(i,dummy.matrix);m.setColorAt(i,new T.Color().setHSL(.19+rand()*.07,.12,.72+rand()*.28))});m.computeBoundingSphere();m.boundingSphere.radius+=1;grassChunks.push(m);scene.add(m)}
-let trailIndex=0,lastTrail=-1,lastLOD=-1;
-
-function agedWood(vertical){const c=document.createElement('canvas');c.width=c.height=512;const ctx=c.getContext('2d');if(vertical){ctx.translate(512,0);ctx.rotate(Math.PI/2)}ctx.fillStyle='#85735d';ctx.fillRect(0,0,512,512);
-const knots=Array.from({length:5},()=>[rand()*512,rand()*512,12+rand()*28]);for(let i=0;i<1200;i++){let y=rand()*512;ctx.strokeStyle=['#40382b66','#b8a58a88','#64554299','#d1c1a044','#493c3055'][i%5];ctx.lineWidth=.4+rand()*2.4;ctx.beginPath();for(let x=0;x<=512;x+=8){let yy=y+2*Math.sin(x*.025+y*.1);for(const [kx,ky,r] of knots){let d=y-ky;yy+=Math.sign(d||1)*r*.55*Math.exp(-((x-kx)**2/(r*r*4)+d*d/(r*r)));}if(x===0)ctx.moveTo(x,yy);else ctx.lineTo(x,yy)}ctx.stroke()}
-for(const [x,y,r] of knots){ctx.save();ctx.translate(x,y);for(let j=7;j>0;j--){ctx.strokeStyle=j%2?'#4c4033aa':'#b19b7a99';ctx.lineWidth=1.5;ctx.beginPath();ctx.ellipse(0,0,r*j/7,r*j/15,.08,0,Math.PI*2);ctx.stroke()}ctx.fillStyle='#49392d';ctx.beginPath();ctx.ellipse(0,0,r*.16,r*.09,0,0,Math.PI*2);ctx.fill();ctx.restore()}
-for(let i=0;i<35;i++){let x=rand()*512,y=rand()*512;ctx.strokeStyle='#30291f99';ctx.lineWidth=.8+rand()*2;ctx.beginPath();ctx.moveTo(x,y);for(let j=0;j<6;j++)ctx.lineTo(x+j*8,y+(rand()-.5)*5);ctx.stroke()}for(let i=0;i<3500;i++){let x=rand()*512,y=rand()*512;ctx.fillStyle=i%2?'#a9aa8950':'#363d2750';ctx.fillRect(x,y,1+rand()*3,1+rand()*2)}const tex=new T.CanvasTexture(c);tex.colorSpace=T.SRGBColorSpace;tex.anisotropy=4;return tex}
-const wt=agedWood(false),wallTex=agedWood(true);
-const woods=Array.from({length:8},(_,i)=>new T.MeshStandardMaterial({map:wt,bumpMap:wt,bumpScale:.018,color:new T.Color().setHSL(.085,.12,.78+i*.025),roughness:.98}));
-const walls=woods.map(m=>{let n=m.clone();n.map=wallTex;n.bumpMap=wallTex;return n});
-const dark=mat(0x342a23),iron=mat(0x383e3c);
-const roofCanvas=document.createElement('canvas');roofCanvas.width=roofCanvas.height=512;const rr=roofCanvas.getContext('2d');rr.drawImage(wt.image,0,0);for(let i=0;i<12000;i++){let x=rand()*512,y=rand()*512;rr.fillStyle=['#43533355','#82905a55','#292c2655','#a4a48b55'][i%4];rr.fillRect(x,y,1+rand()*5,1+rand()*3)}const rt=new T.CanvasTexture(roofCanvas);rt.colorSpace=T.SRGBColorSpace;const roofmat=new T.MeshStandardMaterial({map:rt,bumpMap:rt,bumpScale:.045,color:0xaaa394,roughness:1});
-function box(w,h,d,m,x,y,z,parent=scene){return mesh(new T.BoxGeometry(w,h,d),m,x,y,z,parent)}
-const cabin=new T.Group();cabin.position.set(27,h(27,3),3);scene.add(cabin);
-box(6,.28,5,dark,0,.14,0,cabin);
-for(let i=0;i<25;i++){let x=-2.88+i*.24;for(let side of [-1,1]){if(side===1&&Math.abs(x)<.65)continue;if(side===1&&x>1.15&&x<2.35){box(.23,.9,.15,walls[i%8],x,.65,2.5,cabin);box(.23,.65,.15,walls[i%8],x,2.7,2.5,cabin);continue}box(.23,2.9+rand()*.08,.16,walls[i%8],x,1.65,side*2.5,cabin)}}
-for(let i=0;i<21;i++)for(let side of [-1,1])box(.16,2.95,.23,walls[(i+2)%8],side*3,1.65,-2.4+i*.24,cabin);
-for(let x of [-3,3])for(let z of [-2.5,2.5])box(.23,3.1,.24,dark,x,1.65,z,cabin);
-const door=box(1.15,2.1,.13,walls[2],0,1.25,2.48,cabin);door.rotation.y=.12;box(.08,.08,.12,iron,.43,1.15,2.6,cabin);box(1.25,.12,.22,dark,0,2.38,2.56,cabin);
-box(1.16,1.1,.06,mat(0x293c3c),1.75,1.72,2.43,cabin);for(let x of [1.15,1.75,2.35])box(.09,1.25,.12,dark,x,1.72,2.55,cabin);for(let y of [1.12,1.72,2.32])box(1.25,.09,.12,dark,1.75,y,2.55,cabin);
-
-// Exact sloping gable boards: each board is clipped to the underside of the roof.
-const roofAngle=.48,roofCenter=3.77,roofOffset=1.55,roofThickness=.14;
-function gableTop(x){return roofCenter+(roofOffset-Math.abs(x))*Math.tan(roofAngle)-roofThickness/(2*Math.cos(roofAngle))+.025}
-for(let side of [-1,1]){for(let i=0;i<15;i++){let z=-2.8+i*.39;if(side===1&&(i===4||i===5))continue;let plank=box(3.95,.14,.395,roofmat,side*roofOffset,roofCenter,z,cabin);plank.rotation.z=-side*roofAngle;}
-for(let i=0;i<26;i++){let l=-3+i*6/26,rr=-3+(i+1)*6/26,base=2.98,tl=gableTop(l),tr=gableTop(rr);const shape=new T.Shape();shape.moveTo(l,base);shape.lineTo(rr,base);shape.lineTo(rr,tr);shape.lineTo(l,tl);shape.closePath();let geo=new T.ExtrudeGeometry(shape,{depth:.16,bevelEnabled:false});let uv=geo.attributes.uv;for(let j=0;j<uv.count;j++)uv.setXY(j,(uv.getX(j)-l)/(rr-l),uv.getY(j)/3);mesh(geo,walls[i%8],0,0,side*2.5-.08,cabin);}}
-box(.23,.18,5.9,dark,0,4.60,0,cabin);box(1.8,.16,.65,woods[1],0,.15,2.95,cabin);
-for(let i=0;i<9;i++){let log=mesh(new T.CylinderGeometry(.14,.18,.8,9),walls[i%8],-3.7+(i%3)*.3,.2+Math.floor(i/3)*.28,1.8,cabin);log.rotation.x=Math.PI/2}
-
-// Weathered fasteners, diagonal door brace, exposed roof rafters and broken boards.
-box(.13,1.95,.08,walls[4],0,1.25,2.59,cabin).rotation.z=.49;
-for(let i=0;i<7;i++){let x=-2.65+i*.85;for(let z of [-2.59,2.59]){box(.035,.035,.025,iron,x,.38,z,cabin);box(.035,.035,.025,iron,x,2.85,z,cabin)}}
-for(let i=0;i<5;i++){let z=-2.4+i*1.2;for(let side of [-1,1]){let beam=box(3.65,.13,.12,walls[1],side*1.55,3.57,z,cabin);beam.rotation.z=-side*.48}}
-for(let i=0;i<3;i++){let p=box(.18,1.2+rand()*.6,.10,walls[i],-2.7+i*.23,1.1,2.63,cabin);p.rotation.z=.12+i*.08}
-
-// Merge static cabin geometry by material to cut draw calls and shadow submissions.
-const batches=new Map();cabin.updateMatrixWorld(true);for(const o of [...cabin.children]){if(!o.isMesh)continue;o.updateMatrix();let g=o.geometry.index?o.geometry.toNonIndexed():o.geometry.clone();g.applyMatrix4(o.matrix);if(!batches.has(o.material))batches.set(o.material,[]);batches.get(o.material).push(g);cabin.remove(o);o.geometry.dispose()}
-for(const [m,gs] of batches){const p=[],n=[],u=[];for(const g of gs){for(const v of g.attributes.position.array)p.push(v);for(const v of g.attributes.normal.array)n.push(v);for(const v of g.attributes.uv.array)u.push(v);g.dispose()}const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(p,3));g.setAttribute('normal',new T.Float32BufferAttribute(n,3));g.setAttribute('uv',new T.Float32BufferAttribute(u,2));mesh(g,m,0,0,0,cabin)}
-const dockZ=-5,dockX=shore(dockZ);for(let i=0;i<22;i++){let x=dockX+1-i*.36;if(i===13||i===14||i===19)continue;let p=box(.34,.12,2.15,woods[i%8],x,.48,dockZ);p.rotation.z=(i>15?-.06:0)+rand()*.035;p.rotation.y=(rand()-.5)*.08}
-for(let z of [dockZ-.83,dockZ+.83]){box(7.4,.17,.17,dark,dockX-2.5,.28,z);for(let i=0;i<4;i++){let p=mesh(new T.CylinderGeometry(.11,.15,2.2,9),woods[i],dockX-i*2,-.35,z);p.rotation.z=i===3?.18:0}}
-const boat=new T.Group();boat.position.set(dockX-4,.08,dockZ+2.5);boat.rotation.y=.35;scene.add(boat);
-const hull=new T.BufferGeometry(),hv=[],hi=[];for(let i=0;i<=24;i++){let z=-1.9+i*3.8/24,w=.75*Math.pow(Math.sin(Math.PI*i/24),.65);hv.push(-w,.34,z,-w*.72,-.15,z,w*.72,-.15,z,w,.34,z);if(i<24)for(let j=0;j<3;j++){let k=i*4+j;hi.push(k,k+4,k+1,k+1,k+4,k+5)}}hull.setAttribute('position',new T.Float32BufferAttribute(hv,3));hull.setIndex(hi);hull.computeVertexNormals();const hm=woods[3].clone();hm.side=T.DoubleSide;mesh(hull,hm,0,0,0,boat);for(let z of [-.8,.25,.9])box(1.1,.09,.25,woods[6],0,.22,z,boat);for(let side of [-1,1]){let pts=[];for(let i=0;i<=24;i++)pts.push(new T.Vector3(side*.75*Math.pow(Math.sin(Math.PI*i/24),.65),.35,-1.9+i*3.8/24));mesh(new T.TubeGeometry(new T.CatmullRomCurve3(pts),24,.045,6,false),dark,0,0,0,boat)}
-const fx=shore(0)+2.4,fz=0,fy=h(fx,fz);for(let i=0;i<13;i++){let a=i*Math.PI*2/13,o=mesh(rockGeo,rockMat,fx+Math.cos(a)*.75,fy+.12,fz+Math.sin(a)*.75);o.scale.set(.26,.19,.23)}for(let i=0;i<5;i++){let o=mesh(new T.CylinderGeometry(.1,.12,1.05,8),dark,fx,fy+.13,fz);o.rotation.set(Math.PI/2,i*1.3,0)}
-const fire=new T.Group();fire.position.set(fx,fy+.2,fz);scene.add(fire);const flames=[];const flameMat=new T.ShaderMaterial({transparent:true,depthWrite:false,side:T.DoubleSide,blending:T.AdditiveBlending,uniforms:{time:{value:0}},vertexShader:'varying vec2 v;void main(){v=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',fragmentShader:`varying vec2 v;uniform float time;float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}float noise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(hash(i),hash(i+vec2(1,0)),f.x),mix(hash(i+vec2(0,1)),hash(i+1.),f.x),f.y);}void main(){float y=v.y;float n=noise(vec2(v.x*7.,y*5.-time*3.));float n2=noise(vec2(v.x*14.,y*9.-time*5.));float x=abs(v.x-.5+.16*y*sin(y*8.-time*4.)+.12*(n-.5));float width=.38*pow(1.-y,.8);float a=(1.-smoothstep(width*.55,width+.025,x))*smoothstep(0.,.08,y)*(1.-smoothstep(.72,.99,y+n*.14));a*=smoothstep(.13,.55,n*.7+n2*.3);vec3 c=mix(vec3(1.,.12,.008),vec3(1.,.65,.045),clamp(1.-x*3.-y*.45,0.,1.));c=mix(c,vec3(1.,.97,.65),pow(max(0.,1.-x*5.-y),2.));gl_FragColor=vec4(c,a*.85);}`});for(let i=0;i<5;i++){let o=new T.Mesh(new T.PlaneGeometry(1.1,1.65),flameMat);o.position.y=.73;o.rotation.y=i*Math.PI/5;fire.add(o);flames.push(o)}
-const emberMat=new T.MeshBasicMaterial({color:0xff5b0c});for(let i=0;i<22;i++){let o=mesh(new T.SphereGeometry(.035+rand()*.045,5,4),emberMat,fx+(rand()-.5)*.85,fy+.18,fz+(rand()-.5)*.85);o.castShadow=false}
-const sparksGeo=new T.BufferGeometry(),sparkPos=new Float32Array(90*3);sparksGeo.setAttribute('position',new T.BufferAttribute(sparkPos,3));const sparks=new T.Points(sparksGeo,new T.PointsMaterial({color:0xffb449,size:.055,transparent:true,opacity:.85,depthWrite:false,blending:T.AdditiveBlending}));scene.add(sparks);
-const glow=new T.PointLight(0xff8b35,3,7,2);glow.position.set(fx,fy+.7,fz);scene.add(glow);
-const smokeCanvas=document.createElement('canvas');smokeCanvas.width=smokeCanvas.height=64;let sc=smokeCanvas.getContext('2d'),gr=sc.createRadialGradient(32,32,0,32,32,32);gr.addColorStop(0,'rgba(190,185,175,.5)');gr.addColorStop(1,'rgba(190,185,175,0)');sc.fillStyle=gr;sc.fillRect(0,0,64,64);const st=new T.CanvasTexture(smokeCanvas),smokes=[];for(let i=0;i<14;i++){let o=new T.Sprite(new T.SpriteMaterial({map:st,transparent:true,depthWrite:false}));scene.add(o);smokes.push(o)}
-
-const car=new T.Group();car.position.set(34,h(34,9)+.04,9);car.rotation.y=-.45;scene.add(car);
-// Environment reflection generated once, not a live reflection pass.
-const envC=document.createElement('canvas');envC.width=512;envC.height=256;const ec=envC.getContext('2d'),eg=ec.createLinearGradient(0,0,0,256);eg.addColorStop(0,'#649bc8');eg.addColorStop(.42,'#e6f0f4');eg.addColorStop(.52,'#859b79');eg.addColorStop(1,'#343a2c');ec.fillStyle=eg;ec.fillRect(0,0,512,256);for(let i=0;i<12;i++){ec.fillStyle='#ffffff99';ec.fillRect(i*47,65+rand()*30,15,20)}const et=new T.CanvasTexture(envC);et.mapping=T.EquirectangularReflectionMapping;et.colorSpace=T.SRGBColorSpace;const pmrem=new T.PMREMGenerator(r),carEnv=pmrem.fromEquirectangular(et).texture;pmrem.dispose();et.dispose();
-// Imported car replaces the entire procedural V13 car. Textures stay embedded.
-const carStatus=document.querySelector('#car-status');
-const carLoader=new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
-function loadCar(){
-  carStatus.textContent='Chargement de la voiture…';
-  carLoader.load('./assets/car-v14.glb',gltf=>{
-    const model=gltf.scene;
-    model.updateMatrixWorld(true);
-    const bounds=new T.Box3().setFromObject(model),size=bounds.getSize(new T.Vector3());
-    const scale=4.66/size.z;
-    model.scale.multiplyScalar(scale);
-    model.updateMatrixWorld(true);
-    bounds.setFromObject(model);
-    const center=bounds.getCenter(new T.Vector3());
-    model.position.add(new T.Vector3(-center.x,-bounds.min.y,-center.z));
-    model.traverse(o=>{
-      if(!o.isMesh)return;
-      o.castShadow=true;o.receiveShadow=true;
-      for(const material of (Array.isArray(o.material)?o.material:[o.material])){
-        material.envMap=carEnv;material.envMapIntensity=.8;
-        for(const texture of [material.map,material.metalnessMap,material.roughnessMap]){
-          if(texture)texture.anisotropy=Math.min(4,r.capabilities.getMaxAnisotropy());
-        }
-        material.needsUpdate=true;
-      }
-    });
-    car.add(model);
-    // Match the parking ground's longitudinal and transverse slope.
-    const worldHeight=(x,z)=>h(34+x*Math.cos(car.rotation.y)+z*Math.sin(car.rotation.y),9-x*Math.sin(car.rotation.y)+z*Math.cos(car.rotation.y));
-    const left=(worldHeight(-.95,-1.45)+worldHeight(-.95,1.45))/2;
-    const right=(worldHeight(.95,-1.45)+worldHeight(.95,1.45))/2;
-    const rear=(worldHeight(-.95,-1.45)+worldHeight(.95,-1.45))/2;
-    const front=(worldHeight(-.95,1.45)+worldHeight(.95,1.45))/2;
-    model.rotation.x=-Math.atan2(front-rear,2.9);
-    model.rotation.z=Math.atan2(right-left,1.9);
-    car.position.y=(left+right)/2+.035;
-    r.shadowMap.needsUpdate=true;
-    carStatus.remove();
-  },event=>{
-    if(event.lengthComputable)carStatus.textContent='Chargement de la voiture… '+Math.round(event.loaded/event.total*100)+' %';
-  },error=>{
-    console.error('Car loading failed',error);
-    carStatus.textContent='La voiture n’a pas pu charger. ';
-    const retry=document.createElement('button');retry.textContent='Réessayer';
-    retry.style.cssText='font:inherit;padding:8px 12px;border-radius:8px;border:0';
-    retry.onclick=loadCar;carStatus.append(retry);
-  });
-}
-loadCar();
-const player=new T.Group();scene.add(player);player.position.set(28,h(28,12),12);const shirt=mat(0x426b83),pants=mat(0x424a45),skin=mat(0xd6a17b);mesh(new T.CapsuleGeometry(.28,.48,4,8),shirt,0,1.15,0,player);mesh(new T.SphereGeometry(.22,12,10),skin,0,1.82,0,player);let legs=[],arms=[];for(let s of [-1,1]){let l=new T.Group();l.position.set(s*.15,.85,0);player.add(l);mesh(new T.CapsuleGeometry(.11,.45,3,6),pants,0,-.34,0,l);mesh(new T.BoxGeometry(.23,.16,.34),mat(0x40352c),0,-.72,.06,l);legs.push(l);let a=new T.Group();a.position.set(s*.35,1.45,0);player.add(a);mesh(new T.CapsuleGeometry(.09,.38,3,6),shirt,0,-.25,0,a);arms.push(a)}
-let yaw=1.05,pitch=.28,jx=0,jy=0,pid=null,look=null,keys={};const pad=document.querySelector('#pad'),knob=document.querySelector('#knob');function joy(e){let b=pad.getBoundingClientRect(),x=(e.clientX-b.left-60)/45,y=(e.clientY-b.top-60)/45,d=Math.max(1,Math.hypot(x,y));jx=x/d;jy=y/d;knob.style.transform='translate('+jx*38+'px,'+jy*38+'px)'}pad.onpointerdown=e=>{pid=e.pointerId;pad.setPointerCapture(pid);joy(e)};pad.onpointermove=e=>{if(e.pointerId===pid)joy(e)};pad.onpointerup=pad.onpointercancel=()=>{pid=null;jx=jy=0;knob.style.transform=''};r.domElement.onpointerdown=e=>{look=[e.pointerId,e.clientX,e.clientY];r.domElement.setPointerCapture(e.pointerId)};r.domElement.onpointermove=e=>{if(look&&look[0]===e.pointerId){yaw-=(e.clientX-look[1])*.006;pitch=Math.max(.12,Math.min(.85,pitch+(e.clientY-look[2])*.004));look=[e.pointerId,e.clientX,e.clientY]}};r.domElement.onpointerup=r.domElement.onpointercancel=()=>look=null;onkeydown=e=>keys[e.key.toLowerCase()]=true;onkeyup=e=>keys[e.key.toLowerCase()]=false;onresize=()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();r.setSize(innerWidth,innerHeight)};
-let last=performance.now(),t=0,frames=0,elapsed=0;function loop(now){requestAnimationFrame(loop);let dt=Math.min(.05,(now-last)/1000);last=now;t+=dt;let x=jx+(keys.d||keys.arrowright?1:0)-(keys.a||keys.q||keys.arrowleft?1:0),z=jy+(keys.s||keys.arrowdown?1:0)-(keys.w||keys.z||keys.arrowup?1:0),d=Math.hypot(x,z);if(d>.05){let dx=(x*Math.cos(yaw)+z*Math.sin(yaw))/Math.max(1,d),dz=(-x*Math.sin(yaw)+z*Math.cos(yaw))/Math.max(1,d);player.position.x=T.MathUtils.clamp(player.position.x+dx*dt*5,-100,100);player.position.z=T.MathUtils.clamp(player.position.z+dz*dt*5,-100,100);player.rotation.y=Math.atan2(dx,dz)}if(Math.hypot(player.position.x-34,player.position.z-9)<2.4){let dx=player.position.x-34,dz=player.position.z-9,dd=Math.max(.01,Math.hypot(dx,dz));player.position.x=34+dx/dd*2.4;player.position.z=9+dz/dd*2.4;}if(player.position.x<shore(player.position.z)+.7)player.position.x=shore(player.position.z)+.7;if(Math.abs(player.position.x-27)<3.35&&Math.abs(player.position.z-3)<2.85){let dx=player.position.x-27,dz=player.position.z-3;if(3.35-Math.abs(dx)<2.85-Math.abs(dz))player.position.x=27+(dx<0?-3.35:3.35);else player.position.z=3+(dz<0?-2.85:2.85)}player.position.y=h(player.position.x,player.position.z);for(let i=0;i<2;i++){legs[i].rotation.x=d>.05?Math.sin(t*10+i*Math.PI)*.55:0;arms[i].rotation.x=-legs[i].rotation.x*.7}camera.position.set(player.position.x+Math.sin(yaw)*6,player.position.y+2+Math.sin(pitch)*6,player.position.z+Math.cos(yaw)*6);camera.position.y=Math.max(camera.position.y,h(camera.position.x,camera.position.z)+.8);camera.lookAt(player.position.x,player.position.y+1.3,player.position.z);groundTime.value=t;if(t-lastLOD>.35){lastLOD=t;for(const m of grassChunks){let c=m.boundingSphere.center,dist=Math.hypot(c.x-player.position.x,c.z-player.position.z);m.visible=dist<48;m.material=dist<15?cardMat:farGrassMat;}}grassUniforms.uTime.value=t;grassUniforms.uPlayer.value.set(player.position.x,player.position.z);if(d>.05&&t-lastTrail>.16){grassUniforms.uTrail.value[trailIndex].set(player.position.x,player.position.z,t,0);trailIndex=(trailIndex+1)%8;lastTrail=t;}water.material.uniforms.time.value=t;boat.position.y=.08+Math.sin(t*1.4)*.035;boat.rotation.z=Math.sin(t*1.1)*.025;flameMat.uniforms.time.value=t;for(let i=0;i<90;i++){let a=(t*(.32+(i%7)*.025)+i*.618)%1;sparkPos[i*3]=fx+Math.sin(i*7.1+a*4)*(.12+a*.55)+a*.4;sparkPos[i*3+1]=fy+.35+a*2.8;sparkPos[i*3+2]=fz+Math.cos(i*3.7+a*5)*(.12+a*.4)}sparksGeo.attributes.position.needsUpdate=true;sparks.frustumCulled=false;glow.intensity=2.5+Math.sin(t*11)*.6;smokes.forEach((o,i)=>{let a=(t*.25+i/14)%1;o.position.set(fx+a*1.2,fy+.7+a*4,fz+Math.sin(a*5+i)*.16);o.scale.setScalar(.4+a*1.7);o.material.opacity=(1-a)*.5});r.render(scene,camera);frames++;elapsed+=dt;if(elapsed>1.5){let fps=frames/elapsed;document.querySelector('#fps').textContent=Math.round(fps)+' FPS';let pr=r.getPixelRatio();if(fps<29&&pr>.76){r.setPixelRatio(Math.max(.75,pr-.1));r.setSize(innerWidth,innerHeight)}else if(fps>54&&pr<Math.min(devicePixelRatio,1.15)){r.setPixelRatio(Math.min(devicePixelRatio,1.15,pr+.05));r.setSize(innerWidth,innerHeight)}frames=elapsed=0}}requestAnimationFrame(loop);
-</script></html>
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#0b1220">
+<title>Refuge – démo 3D</title>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:#0b1220;overflow:hidden;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:#fff;overscroll-behavior:none}
+canvas#c{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
+.hud{position:fixed;left:0;right:0;top:0;padding:calc(10px + env(safe-area-inset-top,0px)) calc(10px + env(safe-area-inset-right,0px)) 0 calc(10px + env(safe-area-inset-left,0px));display:flex;gap:8px;align-items:flex-start;justify-content:space-between;pointer-events:none;z-index:5}
+.stats{font:600 12px/1.35 ui-monospace,Menlo,Consolas,monospace;background:rgba(8,14,26,.62);padding:7px 10px;border-radius:10px;backdrop-filter:blur(4px);white-space:pre}
+.btns{display:flex;flex-direction:column;gap:6px;align-items:flex-end;pointer-events:auto}
+.btns button{font:600 12px system-ui,sans-serif;color:#fff;background:rgba(8,14,26,.62);border:1px solid rgba(255,255,255,.22);border-radius:10px;padding:8px 11px;backdrop-filter:blur(4px);min-width:118px;text-align:left}
+.btns button:active{background:rgba(60,90,140,.7)}
+#stick{position:fixed;left:calc(22px + env(safe-area-inset-left,0px));bottom:calc(28px + env(safe-area-inset-bottom,0px));width:132px;height:132px;border-radius:50%;background:rgba(255,255,255,.1);border:2px solid rgba(255,255,255,.32);touch-action:none;z-index:5}
+#knob{position:absolute;left:50%;top:50%;width:56px;height:56px;margin:-28px 0 0 -28px;border-radius:50%;background:rgba(255,255,255,.55);box-shadow:0 2px 8px rgba(0,0,0,.4)}
+#toast{position:fixed;left:50%;bottom:calc(180px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:rgba(8,14,26,.8);padding:9px 14px;border-radius:10px;font:600 13px system-ui;opacity:0;transition:opacity .3s;pointer-events:none;max-width:86vw;text-align:center;z-index:6}
+#toast.on{opacity:1}
+#load{position:fixed;inset:0;background:#0b1220;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:10px;z-index:10;font:600 15px system-ui;transition:opacity .5s}
+#load small{font-weight:400;opacity:.7}
+.hint{position:fixed;right:calc(14px + env(safe-area-inset-right,0px));bottom:calc(30px + env(safe-area-inset-bottom,0px));font:500 12px system-ui;opacity:.65;text-align:right;pointer-events:none;z-index:4}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div class="hud">
+  <div class="stats" id="stats">FPS –</div>
+  <div class="btns">
+    <button id="bQ" type="button">Qualité : Moyen</button>
+    <button id="bV" type="button">Vue : 3e personne</button>
+    <button id="bT" type="button">Heure : 16 h</button>
+  </div>
+</div>
+<div id="stick"><div id="knob"></div></div>
+<div class="hint">Glisse à droite pour regarder</div>
+<div id="toast"></div>
+<div id="load"><div>Le refuge du lac</div><small>Création du paysage…</small></div>
+<script type="module" src="./main.js"></script>
+</body>
+</html>
